@@ -20,6 +20,7 @@ sys.path.append('../..')
 from typing import Any, Dict, List, Optional, Tuple, Union
 import weakref
 
+import hdf5plugin
 import h5py
 from numba import jit
 import numpy as np
@@ -51,8 +52,8 @@ split_name_2_type = {
     'test': SplitType.TEST,
 }
 
-dataset_2_height = {'gen1': 240, 'gen4': 720}
-dataset_2_width = {'gen1': 304, 'gen4': 1280}
+dataset_2_height = {'gen1': 240, 'gen4': 720, 'viso': 512}
+dataset_2_width = {'gen1': 304, 'gen4': 1280, 'viso': 512}
 
 # The following sequences would be discarded because all the labels would be removed after filtering:
 dirs_to_ignore = {
@@ -61,6 +62,7 @@ dirs_to_ignore = {
              '17-04-06_15-14-36_1159500000_1219500000',
              '17-04-11_15-13-23_122500000_182500000'),
     'gen4': (),
+    'viso': (),
 }
 
 
@@ -113,8 +115,8 @@ class H5Writer:
 class H5Reader:
     def __init__(self, h5_file: Path, dataset: str = 'gen4'):
         assert h5_file.exists()
-        assert h5_file.suffix == '.h5'
-        assert dataset in {'gen1', 'gen4'}
+        assert h5_file.suffix == '.hdf5'
+        assert dataset in {'gen1', 'gen4', 'viso'}
 
         self.h5f = h5py.File(str(h5_file), 'r')
         self._finalizer = weakref.finalize(self, self._close_callback, self.h5f)
@@ -152,7 +154,8 @@ class H5Reader:
         # - Set timestamps of events such they are not decreasing.
         assert self.is_open
         if self.all_times is None:
-            self.all_times = np.asarray(self.h5f['events']['t'])
+            # print(list(self.h5f['CD']['events']))
+            self.all_times = np.asarray(self.h5f['CD']['events']['t'])
             self._correct_time(self.all_times)
         return self.all_times
 
@@ -189,7 +192,7 @@ class H5Reader:
 
 
 def prophesee_bbox_filter(labels: np.ndarray, dataset_type: str) -> np.ndarray:
-    assert dataset_type in {'gen1', 'gen4'}
+    assert dataset_type in {'gen1', 'gen4', 'viso'}
 
     # Default values taken from: https://github.com/prophesee-ai/prophesee-automotive-dataset-toolbox/blob/0393adea2bf22d833893c8cb1d986fcbe4e6f82d/src/psee_evaluator.py#L23-L24
     min_box_diag = 60 if dataset_type == 'gen4' else 30
@@ -209,7 +212,7 @@ def prophesee_bbox_filter(labels: np.ndarray, dataset_type: str) -> np.ndarray:
 def conservative_bbox_filter(labels: np.ndarray) -> np.ndarray:
     w_lbl = labels['w']
     h_lbl = labels['h']
-    min_box_side = 5
+    min_box_side = 2
     side_ok = (w_lbl >= min_box_side) & (h_lbl >= min_box_side)
     labels = labels[side_ok]
     return labels
@@ -217,7 +220,7 @@ def conservative_bbox_filter(labels: np.ndarray) -> np.ndarray:
 
 def remove_faulty_huge_bbox_filter(labels: np.ndarray, dataset_type: str) -> np.ndarray:
     """There are some labels which span the frame horizontally without actually covering an object."""
-    assert dataset_type in {'gen1', 'gen4'}
+    assert dataset_type in {'gen1', 'gen4', 'viso'}
     w_lbl = labels['w']
     max_width = (9 * dataset_2_width[dataset_type]) // 10
     side_ok = (w_lbl <= max_width)
@@ -226,7 +229,7 @@ def remove_faulty_huge_bbox_filter(labels: np.ndarray, dataset_type: str) -> np.
 
 
 def crop_to_fov_filter(labels: np.ndarray, dataset_type: str) -> np.ndarray:
-    assert dataset_type in {'gen1', 'gen4'}, f'{dataset_type=}'
+    assert dataset_type in {'gen1', 'gen4', 'viso'}, f'{dataset_type=}'
     # In the gen1 and gen4 datasets the bounding box can be partially or completely outside the frame.
     # We fix this labeling error by cropping to the FOV.
     frame_height = dataset_2_height[dataset_type]
@@ -288,6 +291,9 @@ def get_base_delta_ts_for_labels_us(unique_label_ts_us: np.ndarray, dataset_type
     if dataset_type == 'gen1':
         delta_t_us_4hz = 250000
         return delta_t_us_4hz
+    if dataset_type == 'viso':
+        delta_t_us_10hz = 100000
+        return delta_t_us_10hz
     assert dataset_type == 'gen4'
     diff_us = np.diff(unique_label_ts_us)
     median_diff_us = np.median(diff_us)
@@ -701,7 +707,7 @@ if __name__ == '__main__':
     num_processes = args.num_processes
 
     dataset = args.dataset
-    assert dataset in ('gen1', 'gen4')
+    assert dataset in ('gen1', 'gen4', 'viso')
     downsample_by_2 = True if dataset == 'gen4' else False
 
     config = get_configuration(ev_repr_yaml_config=Path(args.ev_repr_yaml_config),
@@ -740,7 +746,7 @@ if __name__ == '__main__':
             if npy_file.suffix != '.npy':
                 continue
             h5f_path = npy_file.parent / (
-                    npy_file.stem.split('bbox')[0] + f"td{'.dat' if dataset == 'gen1' else ''}.h5")
+                    npy_file.stem.split('_bbox')[0] + f"{'.dat' if dataset == 'gen1' else ''}.hdf5")
             assert h5f_path.exists(), f'{h5f_path=}'
 
             dir_name = npy_file.stem.split('_bbox')[0]
@@ -771,7 +777,7 @@ if __name__ == '__main__':
     else:
         assert config.event_window_extraction.method == AggregationType.DURATION
         ev_repr_delta_ts_ms = config.event_window_extraction.value
-    ts_step_ev_repr_ms = 50  # Could be an argument of the script.
+    ts_step_ev_repr_ms = 100  # Could be an argument of the script.
 
     if num_processes > 1:
         chunksize = 1

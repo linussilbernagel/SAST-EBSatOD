@@ -11,6 +11,7 @@ import numpy as np
 LABELMAP_GEN1 = ("car", "pedestrian")
 LABELMAP_GEN4 = ('pedestrian', 'two wheeler', 'car', 'truck', 'bus', 'traffic sign', 'traffic light')
 LABELMAP_GEN4_SHORT = ('pedestrian', 'two wheeler', 'car')
+LABELMAP_VISO = ('car', 'airplane', 'ship', 'train')
 
 
 def make_binary_histo(events, img=None, width=304, height=240):
@@ -51,7 +52,7 @@ def draw_bboxes_bbv(img, boxes, labelmap=LABELMAP_GEN1) -> np.ndarray:
             1: (0, 0, 255),  # ped -> blue (rgb)
         }
         scale_multiplier = 4
-    else:
+    elif labelmap == LABELMAP_VISO:
         assert labelmap == LABELMAP_GEN4_SHORT
         classid2colors = {
             0: (0, 0, 255),  # ped -> blue (rgb)
@@ -59,6 +60,14 @@ def draw_bboxes_bbv(img, boxes, labelmap=LABELMAP_GEN1) -> np.ndarray:
             2: (255, 255, 0),  # car -> yellow (rgb)
         }
         scale_multiplier = 2
+    elif labelmap == LABELMAP_VISO:
+        classid2colors = {
+            0: (0, 0, 255),  # car -> blue (rgb)
+            1: (0, 255, 255),  # airplane -> cyan (rgb)
+            2: (255, 255, 0),  # ship -> yellow (rgb)
+            3: (255, 0, 255), # train -> purple (rgb)
+        }
+        scale_multiplier = 1
 
     add_score = True
     ht, wd, ch = img.shape
@@ -107,6 +116,8 @@ def draw_bboxes(img, boxes, labelmap=LABELMAP_GEN1, put_score=True) -> None:
             color = (49, 125, 237)
         if class_id == 2:
             color = (255, 255, 0)
+        if class_id == 3:
+            color = (255, 0, 255)
         # if class_id == 0:
         #     color = (255, 255, 0)
         # if class_id == 1:

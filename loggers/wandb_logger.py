@@ -237,6 +237,13 @@ class WandbLogger(Logger):
 
     def _scan_and_log_checkpoints(self, checkpoint_callback: "ReferenceType[ModelCheckpoint]", save_last: bool) -> None:
         assert self._log_model
+
+        experiment = self.experiment
+
+        # Skip remote checkpoint artifact management in offline mode.
+        if getattr(experiment, "offline", False) or getattr(experiment, "_entity", None) is None:
+            return
+
         if self._checkpoint_callback is None:
             self._checkpoint_callback = checkpoint_callback
             self._save_last = checkpoint_callback.save_last

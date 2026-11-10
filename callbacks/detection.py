@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 
 from data.utils.types import ObjDetOutput
 from loggers.wandb_logger import WandbLogger
-from utils.evaluation.prophesee.visualize.vis_utils import LABELMAP_GEN1, LABELMAP_GEN4_SHORT, draw_bboxes
+from utils.evaluation.prophesee.visualize.vis_utils import LABELMAP_GEN1, LABELMAP_GEN4_SHORT, LABELMAP_VISO, draw_bboxes
 from .viz_base import VizCallbackBase
 
 
@@ -26,6 +26,8 @@ class DetectionVizCallback(VizCallbackBase):
             self.label_map = LABELMAP_GEN1
         elif dataset_name == 'gen4':
             self.label_map = LABELMAP_GEN4_SHORT
+        elif dataset_name == 'viso':
+            self.label_map = LABELMAP_VISO
         else:
             raise NotImplementedError
 

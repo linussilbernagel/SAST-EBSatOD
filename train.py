@@ -152,7 +152,7 @@ def main(config: DictConfig):
         val_check_interval=val_check_interval,
         check_val_every_n_epoch=check_val_every_n_epoch,
         default_root_dir='./output/',
-        devices=gpus,
+        devices=1,
         gradient_clip_val=config.training.gradient_clip_val,
         gradient_clip_algorithm='value',
         limit_train_batches=config.training.limit_train_batches,

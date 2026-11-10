@@ -62,7 +62,12 @@ dirs_to_ignore = {
              '17-04-06_15-14-36_1159500000_1219500000',
              '17-04-11_15-13-23_122500000_182500000'),
     'gen4': (),
-    'viso': (),
+    'viso': ('045', '069', '091', '093', '094', '097', '105', 
+             '113', '119', '126', '138', '253', '212', '176', 
+             '140', '352', '338', '199', '200', '214', '078', 
+             '046', '128', '188', '326', '349', '219', '195', 
+             '255', '282', '325', '137', '187', '049', '350', 
+             '337', '071', '110', '134'),
 }
 
 
@@ -123,8 +128,8 @@ class H5Reader:
         self.is_open = True
 
         try:
-            self.height = self.h5f['events']['height'][()].item()
-            self.width = self.h5f['events']['width'][()].item()
+            self.height = 512
+            self.width = 512
         except KeyError:
             self.height = dataset_2_height[dataset]
             self.width = dataset_2_width[dataset]
@@ -173,7 +178,7 @@ class H5Reader:
     def get_event_slice(self, idx_start: int, idx_end: int, convert_2_torch: bool = True):
         assert self.is_open
         assert idx_end >= idx_start
-        ev_data = self.h5f['events']
+        ev_data = self.h5f['CD']['events']
         x_array = np.asarray(ev_data['x'][idx_start:idx_end], dtype='int64')
         y_array = np.asarray(ev_data['y'][idx_start:idx_end], dtype='int64')
         p_array = np.asarray(ev_data['p'][idx_start:idx_end], dtype='int64')
@@ -355,7 +360,13 @@ def labels_and_ev_repr_timestamps(npy_file: Path,
     delta_t_us = ts_step_ev_repr_ms * 1000
 
     sequence_labels = np.load(str(npy_file))
-    assert len(sequence_labels) > 0
+    if len(sequence_labels) <= 0:
+        # print()
+        # print(npy_file)
+        # print()
+        # return 0, 0, 0, 0
+        raise ValueError(f"no labels: {npy_file}")
+    # assert len(sequence_labels) > 0
 
     sequence_labels = apply_filters(labels=sequence_labels,
                                     split_type=split_type,
@@ -694,6 +705,7 @@ def get_configuration(ev_repr_yaml_config: Path, extraction_yaml_config: Path) -
 
 
 if __name__ == '__main__':
+    # print(h5py.h5z.filter_avail(32001))
     parser = argparse.ArgumentParser()
     parser.add_argument('input_dir')
     parser.add_argument('target_dir')

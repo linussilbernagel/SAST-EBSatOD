@@ -1,0 +1,13 @@
+- model=rnndet
+- dataset=viso
+- dataset.path=/vast/ageorge/lms243/datasets/SAST_data/
+- wandb.project_name=SAST-a100
+- wandb.group_name=viso-a100
+- hardware.num_workers.train=4
+- batch_size.train=8
+- hardware.num_workers.eval=4
+- batch_size.eval=8
+- hardware.gpus=[1]
+- +experiment/viso=base.yaml
+- training.learning_rate=0.0002
+- validation.val_check_interval=5000
